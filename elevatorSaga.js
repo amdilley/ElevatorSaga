@@ -124,7 +124,6 @@
         var currentFloor = elevator.currentFloor();
         var closestFloor = this._getClosestFloor(currentFloor);
 
-
         this._updateDestinationQueue.call(elevator, closestFloor);
     },
 
@@ -134,7 +133,8 @@
     _updateDestinationQueue: function (floorNum) {
         var currentFloor = this.currentFloor();
         var destinationQueue = this.destinationQueue;
-        
+        var aboveFloors, belowFloors;
+
         this.direction = currentFloor < destinationQueue[0] ? 'up' : 'down';
 
         // disregard previously pressed floors
@@ -143,13 +143,24 @@
         }
 
         // only sort queue if efficient to do so, i.e. floorNum is on the way to other target floors
-        if (floorNum > currentFloor) {
-            destinationQueue.sort();
+        if (this.direction === 'up') {
+            aboveFloors = destinationQueue.filter(function (floor) {
+                return floor > currentFloor;
+            }).sort();   
+            belowFloors = destinationQueue.filter(function (floor) {
+                return floor <= currentFloor;
+            }).sort().reverse();
 
-            // only need to reverse order if elevator is going down
-            if (this.direction === 'down') {
-                destinationQueue.reverse();
-            }
+            destinationQueue = aboveFloors.concat(belowFloors);
+        } else {
+            aboveFloors = destinationQueue.filter(function (floor) {
+                return floor >= currentFloor;
+            }).sort();   
+            belowFloors = destinationQueue.filter(function (floor) {
+                return floor < currentFloor;
+            }).sort().reverse();
+
+            destinationQueue = belowFloors.concat(aboveFloors);
         }
 
         this.checkDestinationQueue(); // apply new queue
