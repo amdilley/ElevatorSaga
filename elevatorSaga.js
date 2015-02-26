@@ -22,8 +22,7 @@
 
             elevator.on('idle', this._handleIdleElevator.bind(this, elevator));
             elevator.on('floor_button_pressed', this._updateDestinationQueue.bind(elevator));
-            elevator.on('passing_floor', this._checkFloorQueues.bind(this, elevator));
-            // elevator.on('stopped_at_floor', this._handleStoppedElevator.bind(elevator));
+            elevator.on('passing_floor', this._checkFloorQueues.bind(elevator));
         }
     },
 
@@ -55,18 +54,39 @@
     },
 
     /**
-     * @param {object} elevator
      * @param {number} floorNum number of floor being passed by elevator
      */
-    _checkFloorQueues: function (elevator, floorNum) {
-        var floorQueue = this.direction === 'up' ? this.upFloors : this.downFloors;
-        var floorIndex = floorQueue.indexOf(floorNum);
+    _checkFloorQueues: function (floorNum) {
+        var destinationQueue = this.destinationQueue;
+        var floorIndex = destinationQueue.indexOf(floorNum);
 
         // TODO: add check for passenger capacity
         if (floorIndex !== -1) {
-            this._updateDestinationQueue.call(elevator, floorNum);
-            floorQueue.splice(floorIndex, 1);
+            destinationQueue.splice(floorIndex, 1);
+            destinationQueue.unshift(floorNum);
+            this.checkDestinationQueue();
         }
+    },
+
+    /**
+     * @param {array} elevators array of elevator objects
+     */
+    _getClosestElevator: function (floorNum) {
+        var numFloors = this.floors.length;
+
+        return this.elevators.reduce(function (prev, curr) {
+            var prevElevatorDistance = currElevatorDistance = numFloors;
+
+            if (prev.destinationQueue.length === 0) {
+                prevElevatorDistance = Math.abs(floorNum - prev.currentFloor());
+            }
+
+            if (curr.destinationQueue.length === 0) {
+                currElevatorDistance = Math.abs(floorNum - curr.currentFloor());
+            }
+
+            return prevElevatorDistance < currElevatorDistance ? prev : curr;
+        });
     },
 
     /**
@@ -98,23 +118,8 @@
      * @param {string} direction of button pushed ('up' or 'down')
      */
     _handleFloorButtonPush: function (floorNum, direction) {
-        var numFloors = this.floors.length;
-
         this._addToFloorQueue(floorNum, direction);
-        
-        this.elevators.reduce(function (prev, curr) {
-            var prevElevatorDistance = currElevatorDistance = numFloors;
-
-            if (prev.destinationQueue.length === 0) {
-                prevElevatorDistance = Math.abs(floorNum - prev.currentFloor());
-            }
-
-            if (curr.destinationQueue.length === 0) {
-                currElevatorDistance = Math.abs(floorNum - curr.currentFloor());
-            }
-
-            return prevElevatorDistance < currElevatorDistance ? prev : curr;
-        }).trigger('idle');
+        this._updateDestinationQueue.call(this._getClosestElevator(floorNum), floorNum);
     },
 
     /**
